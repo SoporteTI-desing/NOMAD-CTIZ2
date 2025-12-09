@@ -173,19 +173,41 @@ function addLinea(nombre, precio, cant){
 }
 
 function calcTotales(){
-  let subtotal = 0;
-  document.querySelectorAll('#tablaPruebas tbody tr').forEach(tr=>{
-    const val = tr.children[3].textContent.replace(/[^0-9.,-]/g,'').replace(',','');
-    subtotal += Number(val);
+  let subtotalBase = 0;
+
+  // Suma de todos los subtotales de la tabla
+  document.querySelectorAll('#tablaPruebas tbody tr').forEach(tr => {
+    const val = tr.children[3].textContent
+      .replace(/[^0-9.,-]/g, '')
+      .replace(',', '');
+    subtotalBase += Number(val || 0);
   });
-  const iva = subtotal * 0.16;
-  dom('#subtotal').textContent = fmt(subtotal);
+
+  // Leer descuento global (%)
+  const inputDesc = document.querySelector('#descuentoGlobal');
+  let d = 0;
+  if (inputDesc) {
+    d = Number(inputDesc.value);
+    if (isNaN(d) || d < 0) d = 0;
+    if (d > 100) d = 100;
+  }
+
+  const factorDesc = 1 - d / 100;
+
+  // Subtotal ya con descuento aplicado
+  const subtotalConDesc = subtotalBase * factorDesc;
+
+  // IVA calculado sobre el subtotal con descuento
+  const iva = subtotalConDesc * 0.16;
+
+  // Total = subtotal con descuento + IVA
+  const total = subtotalConDesc + iva;
+
+  dom('#subtotal').textContent = fmt(subtotalConDesc);
   dom('#iva').textContent = fmt(iva);
-    // Aplicar descuento global al TOTAL
-  const d = Number((document.querySelector('#descuentoGlobal')||{value:0}).value||0);
-  const total = (subtotal + iva) * (1 - (isNaN(d)?0:d)/100);
   dom('#total').textContent = fmt(total);
 }
+
 
 function setupAgregar(){
   dom('#addPrueba').addEventListener('click', ()=>{
@@ -240,23 +262,53 @@ function setupPDF(){
     const usuario = localStorage.getItem("usuarioActual") || "nomad";
     const folio = await getNextFolio();
     // Mostrar folio en UI antes de captura
-    const folioText = document.getElementById("folioText"); if(folioText) folioText.textContent = folio;
+    const folioText = document.getElementById("folioText");
+    if(folioText) folioText.textContent = folio;
     const nombreArchivo = `Nomad-${paciente}-${fechaEmision}-Folio${folio}.pdf`;
-const { jsPDF } = window.jspdf;
+    const { jsPDF } = window.jspdf;
     const el = document.getElementById('cotizador');
+
     const canvas = await html2canvas(el, {
-      scale: 2,
+      // Escala un poco más baja para reducir el peso del PDF
+      scale: 1.5,
       useCORS: true,
       onclone: (doc)=> {
-        // Ocultar elementos en el DOM clonado para el PDF
+        // Mostrar el descuento aplicado como texto en el PDF
+        try {
+          const originalDesc = document.getElementById('descuentoGlobal');
+          const valorDesc = originalDesc ? originalDesc.value : '';
+          if (valorDesc !== '') {
+            const contClone = doc.querySelector('.descuento-global');
+            if (contClone) {
+              let badge = doc.getElementById('descuentoPdfLabel');
+              if (!badge) {
+                badge = doc.createElement('span');
+                badge.id = 'descuentoPdfLabel';
+                badge.style.marginLeft = '8px';
+                badge.style.fontSize = '12px';
+                badge.style.color = '#2c3e50';
+                badge.style.fontWeight = '600';
+                contClone.appendChild(badge);
+              }
+              badge.textContent = `Descuento aplicado: ${valorDesc}%`;
+            }
+          }
+        } catch(e){
+          console.warn('No se pudo clonar el descuento para el PDF', e);
+        }
+
+        // Ocultar elementos interactivos en el DOM clonado para el PDF
         doc.querySelectorAll('.datos, #listado, .linea.derecha.fechas, select, input, button, #ordenPruebas, #buscarPrueba, .btn-eliminar, #btnPDF')
           .forEach(e=>{ e.style.display='none'; });
+
         // Asegurar que el bloque de fechas para PDF esté visible
         const f = doc.querySelector('.fechas-pdf');
         if (f) f.style.display = 'block';
       }
     });
-    const img = canvas.toDataURL('image/png');
+
+    // Exportar como JPEG con calidad moderada para reducir el tamaño del archivo
+    const img = canvas.toDataURL('image/jpeg', 0.72);
     const pdf = new jsPDF('p','mm','a4');
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
@@ -264,10 +316,11 @@ const { jsPDF } = window.jspdf;
     let imgHeight = canvas.height * imgWidth / canvas.width;
     if (imgHeight > pageHeight) {
       const ratio = pageHeight / imgHeight;
-      imgWidth *= ratio; imgHeight *= ratio;
+      imgWidth *= ratio;
+      imgHeight *= ratio;
     }
     const x = (pageWidth - imgWidth)/2;
-    pdf.addImage(img, 'PNG', x, 0, imgWidth, imgHeight);
+    pdf.addImage(img, 'JPEG', x, 0, imgWidth, imgHeight);
     pdf.save(nombreArchivo);
     await sendToSheet({folio, paciente: pacienteRaw, fecha: fechaEmision, usuario});
   });
@@ -275,7 +328,7 @@ const { jsPDF } = window.jspdf;
 
 
 document.addEventListener('DOMContentLoaded', ()=>{
-    setupBiomarcadores();
+  setupBiomarcadores();
   setFechas();
   poblarAseguradoras();
   poblarMedicos(MEDICOS);
@@ -284,6 +337,13 @@ document.addEventListener('DOMContentLoaded', ()=>{
   poblarPruebas();
   setupAgregar();
   setupPDF();
+
+  // Recalcular totales cuando cambie el descuento global
+  const inputDesc = document.querySelector('#descuentoGlobal');
+  if (inputDesc) {
+    inputDesc.addEventListener('input', calcTotales);
+    inputDesc.addEventListener('change', calcTotales);
+  }
 });
 
 
