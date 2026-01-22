@@ -50,10 +50,6 @@ const ASEG = ["PARTICULAR (PAGO DE BOLSILLO)","ALLIANZ","AXA SEGUROS","BANCO DEL
 const fmt = n => (Number(n)||0).toLocaleString('es-MX',{style:'currency',currency:'MXN'});
 const dom = sel => document.querySelector(sel);
 
-// Límite de descuento global (%)
-const MAX_DESCUENTO_GLOBAL = 15;
-
-
 // Teléfonos por listado (según CONFIG)
 const TEL = {"gestion_nomad":"55 5255 8403","gestion_comercial":"55 43 40 10 15","gnp":"55 79 68 13 04","dra_genoveva":"55 79 68 13 04"};
 
@@ -193,9 +189,7 @@ function calcTotales(){
   if (inputDesc) {
     d = Number(inputDesc.value);
     if (isNaN(d) || d < 0) d = 0;
-    if (d > MAX_DESCUENTO_GLOBAL) d = MAX_DESCUENTO_GLOBAL;
-    /* sincronizar input si se excede */
-    if (Number(inputDesc.value) !== d) inputDesc.value = d;
+    if (d > 100) d = 100;
   }
 
   const factorDesc = 1 - d / 100;
@@ -256,18 +250,6 @@ function setupListado(){
 function setupPDF(){
   const btn = document.getElementById('btnPDF');
   btn.addEventListener('click', async ()=>{
-    // Validar descuento global (máximo 15%)
-    const dgEl = document.getElementById('descuentoGlobal');
-    const dg = dgEl ? Number(dgEl.value) : 0;
-    if (!isNaN(dg) && dg > MAX_DESCUENTO_GLOBAL) {
-      alert('El descuento global máximo permitido es ' + MAX_DESCUENTO_GLOBAL + '%. Ajusta el descuento para continuar.');
-      if (dgEl) {
-        dgEl.value = MAX_DESCUENTO_GLOBAL;
-        dgEl.focus();
-      }
-      calcTotales();
-      return;
-    }
     const pacienteRaw = (document.getElementById("paciente").value || "SinNombre").trim();
     const paciente = pacienteRaw.replace(/\s+/g,""); // remove spaces
     let fechaEmision = document.getElementById("fechaEmision").value;
