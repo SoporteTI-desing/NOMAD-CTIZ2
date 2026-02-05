@@ -237,11 +237,24 @@ function setupBiomarcadores(){
   const btn = dom('#addBiomarcador');
   const sel = dom('#selBiomarcador');
   if(!btn || !sel) return;
+
+  // Regla específica: si la prueba seleccionada es cualquier "Foundation" y el biomarcador es
+  // "PDL1 SP263 y 22C3", entonces el costo debe ser 5000.00 (sin afectar otros rubros).
+  const norm = (s)=>String(s||'').toLowerCase().replace(/\s+/g,' ').trim();
+
   btn.addEventListener('click', ()=>{
     const opt = sel.selectedOptions[0];
     if(!opt) return;
     const nombre = opt.value;
-    const precio = Number(opt.getAttribute('data-precio')||0);
+    let precio = Number(opt.getAttribute('data-precio')||0);
+
+    const pruebaSel = (dom('#selPrueba') && dom('#selPrueba').value) ? dom('#selPrueba').value : '';
+    const esFoundation = /foundation/i.test(pruebaSel);
+    const esPDL1SP263 = norm(nombre) === norm('PDL1 SP263 y 22C3');
+    if(esFoundation && esPDL1SP263){
+      precio = 5000.00;
+    }
+
     addLinea(nombre, precio, 1);
   });
 }
