@@ -206,15 +206,6 @@
       </table>
     </section>
 
-    
-    <!-- Descuento global -->
-    <div class="linea descuento-global" style="padding: 0 24px 0 24px; margin-top: -8px; display:flex; align-items:center; gap:10px;">
-      <label for="descuentoGlobal" style="font-size:12px;color:#5b6b7a;min-width:180px">Descuento global (%)</label>
-      <input id="descuentoGlobal" type="number" min="0" max="15" step="0.01" value="0" style="width:120px;padding:8px 10px;border:1.5px solid var(--borde);border-radius:8px;"/>
-      <small style="color:#6b7b8c">Se aplica sobre el total.</small>
-    </div>
-
-
     <section class="totales">
       <div class="grid">
         <div><span>Subtotal: </span><strong id="subtotal">$ 0.00</strong></div>
@@ -233,6 +224,54 @@
       <button id="btnPDF">Descargar PDF</button>
     </section>
   </main>
+
+  
+  <!-- Firebase (Cotizador NOMAD) -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDhtKZlWpHdhFcnVzWovB93bRSVRkC1sDI",
+      authDomain: "cotizador-nomad.firebaseapp.com",
+      projectId: "cotizador-nomad",
+      storageBucket: "cotizador-nomad.firebasestorage.app",
+      messagingSenderId: "736481537624",
+      appId: "1:736481537624:web:6f06667cf34bccc532642d"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+
+    // Iniciar sesión anónima (coincide con tus reglas Firestore)
+    signInAnonymously(auth).catch(console.error);
+
+    async function saveCotizacion(payload){
+      try{
+        const folio = payload.folio || "";
+        const toSave = Object.assign(
+          {
+            folio,
+            marca: "NOMAD",
+            createdAt: serverTimestamp(),
+            origin: location.href,
+            ua: navigator.userAgent
+          },
+          payload
+        );
+
+        await addDoc(collection(db, "cotizaciones"), toSave);
+        console.log("[Firebase] Cotización NOMAD guardada", folio);
+      }catch(e){
+        console.error("[Firebase] Error guardando cotización NOMAD", e);
+      }
+    }
+
+    // Exponer para app.js
+    window.saveCotizacion = saveCotizacion;
+  </script>
 
   <script src="app.js"></script>
 <div class="footer-code">NOG-KAM-FOR-01</div>
