@@ -63,3 +63,7 @@ a.wa{ margin-left:6px; text-decoration:none; font-size:1.1em; }
   width: 20px;
   vertical-align: middle;
 }
+
+/* Descuento global, discreto y no invasivo */
+.descuento-global{justify-content:flex-start}
+@media print{ .descuento-global{display:none} } /* no incluir en PDF */
