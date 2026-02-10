@@ -50,6 +50,13 @@ const ASEG = ["PARTICULAR (PAGO DE BOLSILLO)","ALLIANZ","AXA SEGUROS","BANCO DEL
 const fmt = n => (Number(n)||0).toLocaleString('es-MX',{style:'currency',currency:'MXN'});
 const dom = sel => document.querySelector(sel);
 
+const normTxt = (s)=>String(s||'').toLowerCase().replace(/\s+/g,' ').trim();
+function hasTempusXtXr(){
+  const tds = document.querySelectorAll('#tablaPruebas tbody tr td:first-child');
+  return Array.from(tds).some(td => normTxt(td.textContent) === normTxt('Tempus xT + xR'));
+}
+
+
 // Límite de descuento global (%)
 const MAX_DESCUENTO_GLOBAL = 15;
 
@@ -171,9 +178,10 @@ function addLinea(nombre, precio, cant){
     <td>${fmt(precio||0)}</td>
     <td>${fmt(subtotal)} </td>
     <td><button class="btn-eliminar">Eliminar</button></td>`;
-  row.querySelector('.btn-eliminar').addEventListener('click', ()=>{ row.remove(); calcTotales(); });
+  row.querySelector('.btn-eliminar').addEventListener('click', ()=>{ row.remove(); calcTotales(); try{poblarBiomarcadores();}catch(e){} });
   tb.appendChild(row);
   calcTotales();
+  try{poblarBiomarcadores();}catch(e){}
 }
 
 function calcTotales(){
@@ -229,7 +237,18 @@ function setupAgregar(){
 function poblarBiomarcadores(){
   const sel = dom('#selBiomarcador');
   if(!sel) return;
-  const items = (DATA.biomarcadores||[]);
+  let items = [...(DATA.biomarcadores||[])];
+
+  // Regla: "NORMAL MATCH" solo se muestra cuando existe la prueba "Tempus xT + xR" en la tabla.
+  const allowNormalMatch = hasTempusXtXr();
+  const existsNM = items.some(b => normTxt(b.nombre) === normTxt('NORMAL MATCH'));
+  if(allowNormalMatch && !existsNM){
+    items.push({nombre:'NORMAL MATCH', precio:0});
+  }
+  if(!allowNormalMatch){
+    items = items.filter(b => normTxt(b.nombre) !== normTxt('NORMAL MATCH'));
+  }
+
   sel.innerHTML = items.map(b=>`<option value="${b.nombre}" data-precio="${b.precio||0}">${b.nombre} — ${fmt(b.precio||0)}</option>`).join('');
 }
 
@@ -253,6 +272,15 @@ function setupBiomarcadores(){
     const esPDL1SP263 = norm(nombre) === norm('PDL1 SP263 y 22C3');
     if(esFoundation && esPDL1SP263){
       precio = 5000.00;
+    }
+
+    const esNormalMatch = norm(nombre) === norm('NORMAL MATCH');
+    if(esNormalMatch){
+      if(!hasTempusXtXr()){
+        alert('NORMAL MATCH solo aplica cuando se incluye la prueba Tempus xT + xR.');
+        return;
+      }
+      precio = 0;
     }
 
     addLinea(nombre, precio, 1);
