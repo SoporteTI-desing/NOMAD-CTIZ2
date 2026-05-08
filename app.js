@@ -57,9 +57,6 @@ function hasTempusXtXr(){
 }
 
 
-// Descuento global sin tope máximo (%)
-
-
 // Teléfonos por listado (según CONFIG)
 const TEL = {"gestion_nomad":"55 5255 8403","gestion_comercial":"55 43 40 10 15","gnp":"55 79 68 13 04","dra_genoveva":"55 79 68 13 04"};
 
